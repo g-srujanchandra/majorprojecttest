@@ -6,7 +6,6 @@ import User from "../Models/User.js";
 import Election from "../Models/Election.js";
 import Candidate from "../Models/Candidate.js";
 import nodemailer from "nodemailer";
-import twilio from "twilio";
 
 // http://localhost:5000/api/auth/register
 //
@@ -74,8 +73,8 @@ export const register = {
 
       } catch (e) {
         console.error("Registration Error Details:", e);
-        return res.status(500).json({ 
-          message: "Registration Failed", 
+        return res.status(500).json({
+          message: "Registration Failed",
           error: e.message,
           stack: e.stack // For debugging
         });
@@ -122,7 +121,7 @@ export const users = {
   deleteUserProfile: (user) => {
     // 🚩 FIX: If it's the default Firebase URL, don't try to delete it as a file!
     const defaultAvatar = "https://firebasestorage.googleapis.com/v0/b/luxuryhub-3b0f6.appspot.com/o/Site%20Images%2Fprofile.png?alt=media&token=6f94d26d-315c-478b-9892-67fda99d2cd6";
-    
+
     if (!user.avatar || user.avatar === defaultAvatar || user.avatar.startsWith("http")) {
       console.log("Skipping deletion of default/remote avatar.");
       return true;
@@ -225,7 +224,7 @@ export const users = {
       await findUser.save();
 
       console.log(`[PASSWORD RESET] For ${email}. New Temp Password: ${tempPassword}`);
-      
+
       return res.status(201).send(`A temporary password has been generated. Please check server console.`);
     } catch (e) {
       console.error(e);
@@ -391,7 +390,7 @@ const sendMail = async (mailContent, mailSubject, user) => {
     service: "gmail",
     auth: {
       user: process.env.EMAIL,
-      pass: process.env.EMAILPASSWORD,
+      pass: process.env.PASSWORD,
     },
   });
 
@@ -418,22 +417,49 @@ const sendMail = async (mailContent, mailSubject, user) => {
 
 export const a = {
   sc: async (req, res) => {
-    const filePath = path.resolve(process.cwd(), "Controller", "fr.py");
-    PythonShell.run(filePath, null, function (err, result) {
-      // console.log(result);
-      // console.log("Error : ");
-      // console.log(err);
-      // console.log("Python script finished");
-      if (err) {
-        return res.status(500).send("Error While Running Python");
-      }
+    const { username, image } = req.body; // image is now base64 string from frontend
+    
+    if (!image) {
+      return res.status(400).send("No image captured");
+    }
 
-      if (result) {
-        return res.status(201).send(result);
-      } else {
-        return res.status(500).send("No face Match Found");
-      }
-    });
+    // 1. Create a unique temporary filename for this login attempt
+    const tempFilename = `temp-${username}-${Date.now()}.jpg`;
+    const tempPath = path.resolve(process.cwd(), "Faces", tempFilename);
+
+    try {
+      // 2. Decode the base64 image and save it to disk
+      const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+      fs.writeFileSync(tempPath, base64Data, 'base64');
+
+      const scriptPath = path.resolve(process.cwd(), "Controller", "fr.py");
+
+      // 3. Run Python script with TWO arguments: username AND the temp image path
+      PythonShell.run(scriptPath, { args: [username, tempPath] }, function (err, result) {
+        // ALWAYS delete the temp file after the script runs
+        if (fs.existsSync(tempPath)) {
+          fs.unlinkSync(tempPath);
+        }
+
+        if (err) {
+          console.error("Biometric Engine Error:", err);
+          return res.status(500).send("Biometric Engine Error");
+        }
+
+        console.log("Python Result:", result);
+
+        // 4. Success if Python prints "Match"
+        if (result && result.includes("Match")) {
+          return res.status(201).send("Biometric Verified");
+        } else {
+          return res.status(202).send("Face Identity Mismatch");
+        }
+      });
+    } catch (e) {
+      console.error("Save Temp Image Error:", e);
+      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+      return res.status(500).send("Verification Process Error");
+    }
   },
 };
 
@@ -458,56 +484,7 @@ export const votingMail = {
   },
 };
 
-// --- OTP TRIAL LOGIC ---
-const tempOtpStore = new Map();
-
-export const otpTrial = {
-  send: async (req, res) => {
-    const { identifier, type } = req.body;
-    if (!identifier) return res.status(400).send("Identifier is required");
-
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    tempOtpStore.set(identifier, { code, expires: Date.now() + 5 * 60 * 1000 });
-
-    console.log(`\n-----------------------------------------`);
-    console.log(`[TRIAL MODE] OTP for ${type} (${identifier}): ${code}`);
-    console.log(`-----------------------------------------\n`);
-
-    if (type === "email") {
-      try {
-        await sendMail(`Your Verification Code is: ${code}`, "E-Voting Verification Code", { email: identifier });
-        return res.status(200).send("OTP sent to your email! (Also check server console)");
-      } catch (err) {
-        return res.status(200).send("Trial Mode: Email failed, but you can get the code from the server terminal console!");
-      }
-    } else {
-      try {
-        await sendSMS(`Your E-Voting Verification Code is: ${code}`, identifier);
-        return res.status(200).send("OTP sent to your mobile! (Check your SMS)");
-      } catch (err) {
-        console.error("SMS Error:", err);
-        return res.status(200).send("Trial Mode: SMS failed or credentials missing, but you can get the code from the server terminal console!");
-      }
-    }
-  },
-  verify: async (req, res) => {
-    const { identifier, code } = req.body;
-    const stored = tempOtpStore.get(identifier);
-
-    if (!stored) return res.status(202).send("No OTP found or it expired.");
-    if (Date.now() > stored.expires) {
-      tempOtpStore.set(identifier, null);
-      return res.status(202).send("OTP expired. Request a new one.");
-    }
-
-    if (stored.code === code) {
-      tempOtpStore.delete(identifier);
-      return res.status(200).send("Verified Successfully!");
-    } else {
-      return res.status(202).send("Invalid Code. Check the console and try again.");
-    }
-  }
-};
+// --- OTP TRIAL LOGIC (REMOVED) ---
 
 const sendSMS = async (content, mobile) => {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -519,7 +496,7 @@ const sendSMS = async (content, mobile) => {
   }
 
   const client = twilio(accountSid, authToken);
-  
+
   // 🏆 PREPENDING +91 for Indian phone numbers if it's missing (a common Twilio mistake)
   const formattedMobile = mobile.startsWith("+") ? mobile : `+91${mobile}`;
 

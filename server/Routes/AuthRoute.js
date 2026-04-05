@@ -8,7 +8,6 @@ import {
   phase,
   votingMail,
   a,
-  otpTrial,
 } from "../Controller/AuthController.js";
 
 const router = Router();
@@ -41,8 +40,6 @@ router.post("/user/voted/:id", users.markVoted);
 router.post("/op", a.sc);
 router.post("/votingEmail", votingMail.send);
 
-// --- OTP TRIAL ROUTES ---
-router.post("/send-otp", otpTrial.send);
-router.post("/verify-otp", otpTrial.verify);
+
 
 export default router;

@@ -42,55 +42,9 @@ const UserRegister = () => {
     setFormData({ ...formData, [e.target.name]: value });
   };
 
-  const [showEmailVerify, setShowEmailVerify] = useState(false);
-  const [showEmailOTP, setShowEmailOTP] = useState(false);
-  const [emailVerified, setEmailVerified] = useState(false);
+  // Verification States (REMOVED)
 
-  const [showPhoneVerify, setShowPhoneVerify] = useState(false);
-  const [showPhoneOTP, setShowPhoneOTP] = useState(false);
-  const [phoneVerified, setPhoneVerified] = useState(false);
-
-  // --- OTP TRIAL STATES & LOGIC ---
-  const [emailOtpInput, setEmailOtpInput] = useState("");
-  const [phoneOtpInput, setPhoneOtpInput] = useState("");
-  const [isOtpSending, setIsOtpSending] = useState(false);
-
-  const handleSendOTP = async (type, identifier) => {
-    if (!identifier) {
-      alert(`Please enter your ${type} first.`);
-      return;
-    }
-    setIsOtpSending(true);
-    try {
-      const res = await axios.post(serverLink + "send-otp", { identifier, type });
-      alert(res.data);
-      if (type === "email") setShowEmailOTP(true);
-      else setShowPhoneOTP(true);
-    } catch (err) {
-      alert("Error sending OTP");
-    } finally {
-      setIsOtpSending(false);
-    }
-  };
-
-  const handleVerifyOTP = async (type, identifier, code) => {
-    if (!code) {
-      alert("Please enter the code you received.");
-      return;
-    }
-    try {
-      const res = await axios.post(serverLink + "verify-otp", { identifier, code });
-      if (res.status === 200) {
-        alert("Verified Successfully!");
-        if (type === "email") setEmailVerified(true);
-        else setPhoneVerified(true);
-      } else {
-        alert(res.data);
-      }
-    } catch (err) {
-      alert("Invalid OTP or Verification Failed.");
-    }
-  };
+  // OTP Logic (REMOVED)
 
   // --- FACE RECOGNITION ML LOGIC ---
   // Face Recognition States
@@ -173,10 +127,6 @@ const UserRegister = () => {
   const handleRegister = async () => {
     if (!faceDescriptor) {
       alert("Please upload a clear profile photo to extract facial data.");
-      return;
-    }
-    if (!emailVerified || !phoneVerified) {
-      alert("CRITICAL: You must verify both Email and Mobile before finalizing registration.");
       return;
     }
     if (!formData.username || !formData.password || !formData.voterId || !formData.email) {
@@ -306,9 +256,9 @@ const UserRegister = () => {
             <TextField fullWidth name="aadharNumber" label={formData.isNRI ? "Overseas Visa / Resident Permit (Optional)" : "Aadhaar Number"} value={formData.aadharNumber} onChange={handleChange} inputProps={{ maxLength: formData.isNRI ? undefined : 12 }} />
           </Grid>
 
-          {/* Contact verifications */}
+          {/* Contact Details */}
           <Grid item xs={12}>
-             <Typography variant="h6" color="primary" style={{ marginTop: 10 }}>Verifications</Typography>
+             <Typography variant="h6" color="primary" style={{ marginTop: 10 }}>Contact Details</Typography>
           </Grid>
 
           <Grid item xs={6}>
@@ -317,34 +267,8 @@ const UserRegister = () => {
               name="email"
               label="Email"
               value={formData.email}
-              onChange={(e) => { handleChange(e); setShowEmailVerify(true); }}
+              onChange={handleChange}
             />
-          </Grid>
-
-          <Grid item xs={6} display="flex" alignItems="center">
-            {!emailVerified && showEmailVerify && !showEmailOTP && (
-              <Button variant="contained" disabled={isOtpSending} onClick={() => handleSendOTP("email", formData.email)}>
-                {isOtpSending ? <CircularProgress size={20} color="inherit" /> : "Verify Email"}
-              </Button>
-            )}
-            {emailVerified && (
-              <Typography style={{ color: "green", fontWeight: "bold" }}>
-                Email Verified ✓
-              </Typography>
-            )}
-            {showEmailOTP && !emailVerified && (
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={5}>
-                  <TextField fullWidth size="small" label="Enter OTP" value={emailOtpInput} onChange={(e) => setEmailOtpInput(e.target.value)} />
-                </Grid>
-                <Grid item xs={7}>
-                  <Button variant="contained" color="success" onClick={() => handleVerifyOTP("email", formData.email, emailOtpInput)}>
-                    Verify
-                  </Button>
-                  <Button variant="text" size="small" style={{ marginLeft: 8 }} onClick={() => handleSendOTP("email", formData.email)}>Resend</Button>
-                </Grid>
-              </Grid>
-            )}
           </Grid>
 
           <Grid item xs={6}>
@@ -353,34 +277,8 @@ const UserRegister = () => {
               name="mobile"
               label="Phone Number"
               value={formData.mobile}
-              onChange={(e) => { handleChange(e); setShowPhoneVerify(true); }}
+              onChange={handleChange}
             />
-          </Grid>
-
-          <Grid item xs={6} display="flex" alignItems="center">
-            {!phoneVerified && showPhoneVerify && !showPhoneOTP && (
-              <Button variant="contained" disabled={isOtpSending} onClick={() => handleSendOTP("mobile", formData.mobile)}>
-                {isOtpSending ? <CircularProgress size={20} color="inherit" /> : "Verify Mobile"}
-              </Button>
-            )}
-            {phoneVerified && (
-              <Typography style={{ color: "green", fontWeight: "bold" }}>
-                Mobile Verified ✓
-              </Typography>
-            )}
-            {showPhoneOTP && !phoneVerified && (
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={5}>
-                  <TextField fullWidth size="small" label="Enter OTP" value={phoneOtpInput} onChange={(e) => setPhoneOtpInput(e.target.value)} />
-                </Grid>
-                <Grid item xs={7}>
-                  <Button variant="contained" color="success" onClick={() => handleVerifyOTP("mobile", formData.mobile, phoneOtpInput)}>
-                    Verify
-                  </Button>
-                  <Button variant="text" size="small" style={{ marginLeft: 8 }} onClick={() => handleSendOTP("mobile", formData.mobile)}>Resend</Button>
-                </Grid>
-              </Grid>
-            )}
           </Grid>
 
           <Grid item xs={12}>
