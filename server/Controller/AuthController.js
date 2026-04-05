@@ -72,11 +72,17 @@ export const register = {
         }
 
       } catch (e) {
-        console.error("Registration Error Details:", e);
+        console.error("CRITICAL REGISTRATION FAILURE:", e);
+        // Special check for MongoDB Duplicate Key Error (Code 11000)
+        if (e.code === 11000) {
+           return res.status(400).json({ 
+             message: "Registration Failed", 
+             error: "Duplicate Entry: This username, email, or Voter ID is already registered." 
+           });
+        }
         return res.status(500).json({
-          message: "Registration Failed",
-          error: e.message,
-          stack: e.stack // For debugging
+          message: "Server/Database Error",
+          error: e.message || "Unknown error"
         });
       }
     });
