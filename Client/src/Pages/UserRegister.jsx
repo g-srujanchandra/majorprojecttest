@@ -164,10 +164,13 @@ const UserRegister = () => {
       window.location.href = "/login";
 
     } catch (e) {
-      console.error(e);
-      const errorMsg = e.response?.data?.message || e.response?.data || "Registration failed";
-      const errorDetail = e.response?.data?.error || "";
-      alert(`${errorMsg}${errorDetail ? ": " + errorDetail : ""}`);
+      console.error("DEBUG: Registration failed", e);
+      // Try to extract a specific error message from the backend
+      const serverMessage = e.response?.data?.message || "Registration failed";
+      const specificError = e.response?.data?.error || "";
+      const fullError = specificError ? `${serverMessage} - ${specificError}` : serverMessage;
+      
+      alert(`⛔ ERROR: ${fullError}\n\n(Tip: Check if the username or email is already registered)`);
     }
   };
 

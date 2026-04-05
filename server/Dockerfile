@@ -15,6 +15,9 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
+# Ensure the Faces directory exists for uploads
+RUN mkdir -p Faces
+
 # Copy package files and install Node.js dependencies
 COPY package*.json ./
 RUN npm install
