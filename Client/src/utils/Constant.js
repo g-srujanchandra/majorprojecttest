@@ -3,7 +3,7 @@ import abi from "./Transaction.json";
 export const contractABI = abi.abi;
 
 export const contractAddress = "0xe0678A17cEc2d5346a8AD5EE6e3f990Faa0a0AD4"; // Updated contract address after migration to Sepolia.
-export const adminAddress = "0x1917D6eD52515E0870CA2beBb81F38A2150128a8";
+export const adminAddress = "0xc894fE2BF7790281B24168089b1a6544E92421bA";
 // This variable stores the address of the deployed smart contract. If you have deployed your own contract, replace the empty string with the address of your contract.
 
 // If you can't find the `contractAddress` in the compiled `Transaction.json` file,
