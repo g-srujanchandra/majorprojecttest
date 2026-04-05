@@ -13,7 +13,7 @@ app.use(express.json());
 const port = process.env.PORT || 5000;
 
 const corsOptions = {
-  origin: process.env.CLIENT_URL || "http://localhost:3000",
+  origin: true, // Automatically allow the requesting origin (Vercel, Localhost, etc.)
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
   credentials: true,
   optionsSuccessStatus: 204

@@ -8,6 +8,10 @@ rootURL = rootURL.replace(/\/api\/auth$/, "");
 export const serverLink = `${rootURL}/api/auth/`;
 export const clientLink = (process.env.REACT_APP_CLIENT_URL || "http://localhost:3000/").replace(/\/$/, "") + "/";
 export const facesLink = `${rootURL}/Faces/`;
+
+console.log("🛠️ DIAGNOSTIC: Server Link is set to ->", serverLink);
+console.log("🛠️ DIAGNOSTIC: Faces Link is set to ->", facesLink);
+
 export const phases = ["init", "voting", "result"];
 export const isFaceRecognitionEnable = true;
 export const isRegistrationOpen = true; // Enforces Registration Window
