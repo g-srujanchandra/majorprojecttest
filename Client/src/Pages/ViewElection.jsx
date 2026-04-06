@@ -234,34 +234,34 @@ export default function ViewElection() {
     setBlinkStatus("Synchronizing Bio-Identity...");
 
     try {
-      console.log(`🎨 [BIO-SHIELD] Synchronizing Identity for username: ${profile.username}`);
+      // 💎 1. ALWAYS pull the fresh profile from MongoDB (Survives Server Redeploys!)
+      const refresh = await axios.get(`${serverLink}user/${profile._id}`);
+      const dbProfile = refresh.data;
+      localStorage.setItem("userProfile", JSON.stringify(dbProfile));
 
-      // 🕵️‍♂️ FALLBACK: If the login session lost the avatar name, fetch it fresh from the DB
-      let avatarName = profile.avatar;
-      if (!avatarName) {
-        console.warn("⚠️ [BIO-SHIELD] Local avatar metadata missing. Fetching fresh profile from server...");
-        const refresh = await axios.get(`${serverLink}user/${profile._id}`);
-        avatarName = refresh.data.avatar;
-        // Update local storage for next time
-        localStorage.setItem("userProfile", JSON.stringify(refresh.data));
+      let referenceDescriptor = null;
+
+      // 🛡️ 2. PRIMARY STRATEGY: Use the Cloud-Stored Mathematical Face Vector
+      // This completely bypasses the 'Faces/' folder which gets deleted when Railway restarts!
+      if (dbProfile.faceDescriptor && dbProfile.faceDescriptor.length > 0) {
+        console.log("💎 [BIO-SHIELD] Found persistent biometric signature in Database! Bypassing physical photo.");
+        // Rebuild the neural array from the database numbers
+        referenceDescriptor = new Float32Array(dbProfile.faceDescriptor);
+      } 
+      else {
+        // 🗑️ 3. FALLBACK: Try fetching physical image (Will cause 404 on Free Tier Redeploys)
+        console.warn("⚠️ [BIO-SHIELD] No persistent signature found. Falling back to physical photo...");
+        const registeredImageUrl = `${serverLink.replace('/api/auth/', '')}/Faces/${dbProfile.avatar}`;
+        const referenceImage = await faceapi.fetchImage(registeredImageUrl);
+        const referenceDetection = await faceapi.detectSingleFace(referenceImage).withFaceLandmarks().withFaceDescriptor();
+        if (!referenceDetection) {
+           throw new Error("Physical image found but no face detected.");
+        }
+        referenceDescriptor = referenceDetection.descriptor;
       }
 
-      const registeredImageUrl = `${serverLink.replace('/api/auth/', '')}/Faces/${avatarName}`;
-      console.log(`🔍 [BIO-SHIELD] Fetching reference photo from URL: ${registeredImageUrl}`);
-
-      const referenceImage = await faceapi.fetchImage(registeredImageUrl);
-      console.log("✅ [BIO-SHIELD] Photo fetched successfully.");
-      
-      const referenceDetection = await faceapi.detectSingleFace(referenceImage).withFaceLandmarks().withFaceDescriptor();
-      
-      if (!referenceDetection) {
-        alert("⛔ CRITICAL ERROR: Could not read your registered Voter ID photo. Please contact election support.");
-        setIsAuthenticating(false);
-        return;
-      }
-
-      // 3. Compare descriptors (Euclidean Distance)
-      const distance = faceapi.euclideanDistance(referenceDetection.descriptor, liveDescriptor);
+      // 4. Compare descriptors (Euclidean Distance)
+      const distance = faceapi.euclideanDistance(referenceDescriptor, liveDescriptor);
       console.log(`[BIO-VERIFY] Distance: ${distance.toFixed(4)} (Tolerance: 0.55)`);
 
       // 4. Threshold check (Strict: 0.55)
