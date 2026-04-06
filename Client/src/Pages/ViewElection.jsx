@@ -230,18 +230,28 @@ export default function ViewElection() {
     
     if (!liveDescriptor || !webcamRef.current) return;
 
-    // 🕵️‍♂️ BIO-SHIELD: Performing 1-to-1 comparison in the BROWSER for max stability
     const profile = JSON.parse(localStorage.getItem("userProfile"));
     setBlinkStatus("Synchronizing Bio-Identity...");
 
     try {
-      // 1. Fetch the original registration photo (Reference) 
-      const registeredImageUrl = `${serverLink.replace('/api/auth/', '')}/Faces/${profile.avatar}`;
-      
-      // 🏎️ SPEED FIX: Request specifically with 'anonymous' to bypass CORS blocks
+      console.log(`🎨 [BIO-SHIELD] Synchronizing Identity for username: ${profile.username}`);
+
+      // 🕵️‍♂️ FALLBACK: If the login session lost the avatar name, fetch it fresh from the DB
+      let avatarName = profile.avatar;
+      if (!avatarName) {
+        console.warn("⚠️ [BIO-SHIELD] Local avatar metadata missing. Fetching fresh profile from server...");
+        const refresh = await axios.get(`${serverLink}user/${profile._id}`);
+        avatarName = refresh.data.avatar;
+        // Update local storage for next time
+        localStorage.setItem("userProfile", JSON.stringify(refresh.data));
+      }
+
+      const registeredImageUrl = `${serverLink.replace('/api/auth/', '')}/Faces/${avatarName}`;
+      console.log(`🔍 [BIO-SHIELD] Fetching reference photo from URL: ${registeredImageUrl}`);
+
       const referenceImage = await faceapi.fetchImage(registeredImageUrl);
+      console.log("✅ [BIO-SHIELD] Photo fetched successfully.");
       
-      // 2. Extract features from the reference 
       const referenceDetection = await faceapi.detectSingleFace(referenceImage).withFaceLandmarks().withFaceDescriptor();
       
       if (!referenceDetection) {
