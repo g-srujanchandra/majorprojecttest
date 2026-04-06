@@ -159,18 +159,26 @@ const UserRegister = () => {
     }
 
     try {
+      console.log("🚀 STARTING REGISTRATION REQUEST TO:", serverLink + "register");
       const res = await axios.post(serverLink + "register", data);
       alert(res.data || "Registration Successful!");
       window.location.href = "/login";
 
     } catch (e) {
-      console.error("DEBUG: Registration failed", e);
-      // Try to extract a specific error message from the backend
-      const serverMessage = e.response?.data?.message || "Registration failed";
-      const specificError = e.response?.data?.error || "";
-      const fullError = specificError ? `${serverMessage} - ${specificError}` : serverMessage;
+      console.error("❌ CRITICAL: REGISTRATION FAILED", e);
       
-      alert(`⛔ ERROR: ${fullError}\n\n(Tip: Check if the username or email is already registered)`);
+      // Extract the most specific error possible
+      const serverData = e.response?.data;
+      const status = e.response?.status;
+      
+      let errorMsg = "Registration failed";
+      if (typeof serverData === 'string') errorMsg = serverData;
+      else if (serverData?.message) errorMsg = serverData.message;
+      else if (serverData?.error) errorMsg = serverData.error;
+
+      const detail = serverData?.error || e.message || "Unknown Network Error";
+      
+      alert(`⛔ ERROR (${status || 'Network'}): ${errorMsg}\n\nDetail: ${detail}\n\n(Tip: Check if the username, email, or Voter ID is already registered)`);
     }
   };
 

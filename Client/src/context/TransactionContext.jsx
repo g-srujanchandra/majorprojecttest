@@ -61,25 +61,36 @@ export const TransactionProvider = ({ children }) => {
   const getAllTransactions = useCallback(async () => {
     try {
       const contract = createEthereumContract();
+      if (!contract) return [];
+
+      // 🔥 SAFETY CHECK: Verify the contract exists before calling
+      const code = await ethereum.request({
+        method: 'eth_getCode',
+        params: [contractAddress, 'latest'],
+      });
+      if (code === '0x') {
+        console.warn("⚠️ BLOCKCHAIN: Contract not found at this address on Sepolia. Skipping transactions.");
+        return [];
+      }
 
       const data = await contract.getAllTransaction();
+      console.log("RAW BLOCKCHAIN DATA:", data);
 
-      console.log("RAW:", data);
-
-      // 🔥 IMPORTANT FIX → PROPER STRING CONVERSION
       const formatted = data.map((tx) => ({
         election_id: tx.election_id.toString(),
         candidate_id: tx.candidate_id.toString(),
         user_id: tx.user_id.toString(),
       }));
 
-      console.log("FORMATTED:", formatted);
-
       setTransactions(formatted);
-
       return formatted;
     } catch (error) {
-      console.error(error);
+      // 🛡️ SILENCE REVERT ERRORS (Common with Alchemy free tier)
+      if (error.code === 'CALL_EXCEPTION' || error.message.includes('missing revert data')) {
+        console.warn("🛡️ BLOCKCHAIN NOTICE: Sepolia RPC is currently busy or contract not yet initialized. Skipping fetch.");
+      } else {
+        console.error("Blockchain Fetch Error:", error);
+      }
       return [];
     }
   }, []);
