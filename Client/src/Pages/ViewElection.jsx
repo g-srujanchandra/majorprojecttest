@@ -215,13 +215,13 @@ export default function ViewElection() {
 
   const handleVerifyCredentials = () => {
     const profile = JSON.parse(localStorage.getItem("userProfile"));
-    if (inputVoterId === profile.voterId && inputPasscode === profile.passcode) {
+    if (inputVoterId === profile.voterId && inputPasscode === profile.password) {
       setIsCredentialVerified(true);
       setScanning(true);
       setHasBlinked(false);
       setBlinkStatus("Initializing live scan...");
     } else {
-      alert("Invalid Voter ID or Passcode. Please check your registry email.");
+      alert("Invalid Voter ID or Password. Please ensure you entered the correct details.");
     }
   };
 
@@ -525,7 +525,7 @@ export default function ViewElection() {
           ) : !isCredentialVerified ? (
             <Box p={2}>
               <Typography variant="body2" color="textSecondary" style={{ marginBottom: 20 }}>
-                Please enter your credentials sent to your email to unlock biometric voting.
+                Please enter your Voter ID and Account Password to unlock biometric voting.
               </Typography>
               <TextField
                 fullWidth
@@ -537,7 +537,7 @@ export default function ViewElection() {
               />
               <TextField
                 fullWidth
-                label="Security Passcode"
+                label="Account Password"
                 type="password"
                 variant="outlined"
                 margin="normal"
