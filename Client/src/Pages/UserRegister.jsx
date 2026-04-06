@@ -211,6 +211,27 @@ const UserRegister = () => {
           Secure Voter Registration
         </Typography>
 
+        {/* 🛠️ DIAGNOSIS: Connection Test Button */}
+        <Box display="flex" justifyContent="center" mb={3}>
+           <Button 
+             variant="outlined" 
+             color="warning" 
+             onClick={async () => {
+                try {
+                  const root = serverLink.replace("/api/auth/", "/health");
+                  console.log("🛠️ TESTING HEALTH AT:", root);
+                  const res = await axios.get(root);
+                  alert(`✅ SERVER IS ALIVE! Response: ${res.data}`);
+                } catch (e) {
+                  console.error("❌ HEALTH TEST FAILED:", e);
+                  alert(`🔴 CONNECTION FAILED: Check your server URL in Vercel settings.`);
+                }
+             }}
+           >
+             Test Server Connection
+           </Button>
+        </Box>
+
         <Grid container spacing={3}>
           
           <Grid item xs={12}>

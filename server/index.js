@@ -12,13 +12,16 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.json());
 const port = process.env.PORT || 5000;
 
-const corsOptions = {
-  origin: true, // Automatically allow the requesting origin (Vercel, Localhost, etc.)
+// 🔓 PERMISSIVE CORS: Allow all origins to bypass cloud routing blocks
+app.use(cors({
+  origin: "*",
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-  credentials: true,
-  optionsSuccessStatus: 204
-};
-app.use(cors(corsOptions));
+  optionsSuccessStatus: 200
+}));
+
+// 🏥 HEALTH CHECK: Verify the domain is reachable
+app.get("/health", (req, res) => res.send("OK - Server is Live"));
+
 // 🌐 ROUTING: Support both root "/" and "/api/auth/" paths for max compatibility
 app.use("/", Auth); 
 app.use("/api/auth", Auth); 
