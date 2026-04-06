@@ -6,6 +6,7 @@ import User from "../Models/User.js";
 import Election from "../Models/Election.js";
 import Candidate from "../Models/Candidate.js";
 import nodemailer from "nodemailer";
+import { ethers } from "ethers";
 
 // http://localhost:5000/api/auth/register
 //
@@ -518,4 +519,45 @@ const sendSMS = async (content, mobile) => {
     from: twilioNumber,
     to: formattedMobile,
   });
+};
+
+// --- GASLESS RELAYER ENGINE ---
+const contractABI = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "utils", "Transaction.json"), "utf8"));
+
+export const voting = {
+  cast: async (req, res) => {
+    const { electionId, candidateId, userId } = req.body;
+    console.log(`[RELAYER] Received Vote Request - User: ${userId}, Election: ${electionId}, Candidate: ${candidateId}`);
+
+    try {
+      const provider = new ethers.providers.JsonRpcProvider(process.env.ALCHEMY_URL);
+      const wallet = ethers.Wallet.fromMnemonic(process.env.MNEMONIC).connect(provider);
+      const contract = new ethers.Contract(process.env.CONTRACT_ADDRESS, contractABI.abi, wallet);
+
+      // Execute the blockchain transaction using the Master Relayer Wallet
+      const tx = await contract.addToBlockchain(
+        wallet.address,           // receiver (Master wallet acts as sink)
+        userId.toString(),        // voter identity
+        electionId.toString(),    // election UUID
+        candidateId.toString(),   // candidate selected
+        { gasLimit: 1000000 }      // High gas limit for reliability
+      );
+
+      console.log(`[RELAYER] Transaction Broadcasted: ${tx.hash}`);
+      await tx.wait(); // Wait for mining
+      console.log(`[RELAYER] Transaction Confirmed: ${tx.hash}`);
+
+      return res.status(200).json({ 
+        success: true, 
+        hash: tx.hash,
+        message: "Vote confirmed on Ethereum Sepolia"
+      });
+    } catch (error) {
+      console.error("[RELAYER CRITICAL ERROR]:", error);
+      return res.status(500).json({ 
+        success: false, 
+        error: error.message || "Blockchain transaction failed on the backend." 
+      });
+    }
+  },
 };

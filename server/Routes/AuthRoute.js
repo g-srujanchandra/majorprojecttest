@@ -7,6 +7,7 @@ import {
   candidates,
   phase,
   votingMail,
+  voting
 } from "../Controller/AuthController.js";
 
 const router = Router();
@@ -39,6 +40,7 @@ router.post("/user/voted/:id", users.markVoted);
 // 🔍 BIOMETRIC OPERATIONS MIGRATED TO FRONTEND (BIO-SHIELD MODE)
 // Server-side Python engine removed for cloud stability.
 router.post("/votingEmail", votingMail.send);
+router.post("/voting/cast", voting.cast);
 
 
 

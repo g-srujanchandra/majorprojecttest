@@ -285,7 +285,16 @@ export default function ViewElection() {
         const candidateName = targetCandidate.name || targetCandidate;
         const candidateId = targetCandidate.id || targetCandidate;
         
-        const result = await sendTransaction(id, candidateId, user_id);
+        setBlinkStatus("🚀 Broadcasting Vote to Blockchain (Gasless)...");
+
+        // ⛽ GASLESS RELAYER: Send request to backend instead of MetaMask
+        const response = await axios.post(serverLink + "voting/cast", {
+          electionId: id,
+          candidateId: candidateId,
+          userId: profile.voterId // Using Voter ID for the blockchain record
+        });
+        
+        const result = response.data;
         
         if (result.success) {
           try {
@@ -300,7 +309,7 @@ export default function ViewElection() {
           });
           setShowReceipt(true);
         } else {
-          alert(result.mess || "Blockchain Transaction Failed. Please try again.");
+          alert(result.error || "Blockchain Transaction Failed on Server. Please try again.");
         }
       } else {
         // Mismatch
