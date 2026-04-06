@@ -225,29 +225,37 @@ export default function ViewElection() {
     }
   };
 
-  const handlePostLivenessAuth = useCallback(async () => {
+  const handlePostLivenessAuth = useCallback(async (liveDescriptor) => {
     setScanning(false);
     
-    if (!webcamRef.current) return;
+    if (!liveDescriptor || !webcamRef.current) return;
 
-    // 1. Capture the current frame as a base64 image
-    const imageSrc = webcamRef.current.getScreenshot();
-    
-    // 2. Fetch user profile from local storage
+    // 🕵️‍♂️ BIO-SHIELD: Performing 1-to-1 comparison in the BROWSER for max stability
     const profile = JSON.parse(localStorage.getItem("userProfile"));
-
-    setBlinkStatus("Verifying Identity with Cloud Engine...");
+    setBlinkStatus("Synchronizing Bio-Identity...");
 
     try {
-      // 3. Send the image to our Cloud-Ready Backend API
-      const res = await axios.post(serverLink + "op", { 
-        username: profile.username,
-        image: imageSrc 
-      });
+      // 1. Fetch the original registration photo (Reference) 
+      const registeredImageUrl = `${serverLink.replace('/api/auth/', '')}/Faces/${profile.avatar}`;
+      const referenceImage = await faceapi.fetchImage(registeredImageUrl);
+      
+      // 2. Extract features from the reference 
+      const referenceDetection = await faceapi.detectSingleFace(referenceImage).withFaceLandmarks().withFaceDescriptor();
+      
+      if (!referenceDetection) {
+        alert("⛔ CRITICAL ERROR: Could not read your registered Voter ID photo. Please contact election support.");
+        setIsAuthenticating(false);
+        return;
+      }
 
-      if (res.status === 201) {
-        // Success! Python matched the face
-        alert(`✅ Identity Verified!\n\nProceeding with Blockchain Transaction.`);
+      // 3. Compare descriptors (Euclidean Distance)
+      const distance = faceapi.euclideanDistance(referenceDetection.descriptor, liveDescriptor);
+      console.log(`[BIO-VERIFY] Distance: ${distance.toFixed(4)} (Tolerance: 0.55)`);
+
+      // 4. Threshold check (Strict: 0.55)
+      if (distance < 0.55) {
+        // Success! Identity Verified locally
+        alert(`✅ IDENTITY VERIFIED!\n\nHi ${profile.username}, your biometric signature matches. Proceeding to Blockchain...`);
         setIsAuthenticating(false);
         
         const user_id = currentAccount;
@@ -272,13 +280,13 @@ export default function ViewElection() {
           alert(result.mess || "Blockchain Transaction Failed. Please try again.");
         }
       } else {
-        // Mismatch or Error from Python
-        alert(`⛔ IDENTITY REJECTED\n\nYour face does NOT match the registered voter profile.\n\nPlease ensure good lighting and look directly at the camera.`);
+        // Mismatch
+        alert(`⛔ IDENTITY REJECTED\n\nYour face does NOT match your registered voter profile (ID: ${profile.voterId}).`);
         setIsAuthenticating(false);
       }
     } catch (err) {
-      console.error("Biometric API Error:", err);
-      alert("⛔ BIOMETRIC ENGINE ERROR\n\nCould not connect to the facial recognition service. Please check your internet connection.");
+      console.error("Biometric Engine Error (Shield Mode):", err);
+      alert("⛔ BIOMETRIC ENGINE ERROR\n\nCould not initialize local facial comparison. Ensure camera permissions and page reload.");
       setIsAuthenticating(false);
     }
   }, [currentAccount, id, sendTransaction, targetCandidate]);
