@@ -3,7 +3,7 @@ import { TransactionContext } from "../context/TransactionContext";
 import { useParams } from "react-router-dom";
 import { Button, Grid, Typography, Dialog, DialogTitle, DialogContent, DialogActions, Box, CircularProgress, TextField, LinearProgress, Alert } from "@mui/material";
 import Webcam from "react-webcam";
-import { serverLink } from "../Data/Variables";
+import { serverLink, facesLink } from "../Data/Variables";
 import axios from "axios";
 
 // face-api.js is now loaded via CDN in index.html to avoid Webpack 5 polyfill issues
@@ -240,79 +240,78 @@ export default function ViewElection() {
     setBlinkStatus("Synchronizing Bio-Identity...");
 
     try {
-      // 💎 1. ALWAYS pull the fresh profile from MongoDB (Survives Server Redeploys!)
-      const refresh = await axios.get(`${serverLink}user/${profile._id}`);
-      const dbProfile = refresh.data;
+      // 💎 1. SYNC PROFILE: Retrieve fresh voter data from MongoDB
+      let dbProfile;
+      try {
+        const refresh = await axios.get(`${serverLink}user/${profile._id}`);
+        dbProfile = refresh.data;
+      } catch (e) {
+        throw new Error("Network Error: Could not synchronize with the Voter Database. Check your internet connection.");
+      }
       localStorage.setItem("userProfile", JSON.stringify(dbProfile));
 
       let referenceDescriptor = null;
 
-      // 🛡️ 2. PRIMARY STRATEGY: Use the Cloud-Stored Mathematical Face Vector
-      // This completely bypasses the 'Faces/' folder which gets deleted when Railway restarts!
+      // 🛡️ 2. BIO-SHIELD: Prefer existing mathematical vector (Saved during Registration)
       if (dbProfile.faceDescriptor && dbProfile.faceDescriptor.length > 0) {
-        console.log("💎 [BIO-SHIELD] Found persistent biometric signature in Database! Bypassing physical photo.");
-        // Rebuild the neural array from the database numbers
+        console.log("💎 [BIO-SHIELD] Loaded persistent biometric signature from DB.");
         referenceDescriptor = new Float32Array(dbProfile.faceDescriptor);
       } 
       else {
-        // 🗑️ 3. FALLBACK: Try fetching physical image (Will cause 404 on Free Tier Redeploys)
-        console.warn("⚠️ [BIO-SHIELD] No persistent signature found. Falling back to physical photo...");
-        const registeredImageUrl = `${serverLink.replace('/api/auth/', '')}/Faces/${dbProfile.avatar}`;
-        const referenceImage = await faceapi.fetchImage(registeredImageUrl);
-        const referenceDetection = await faceapi.detectSingleFace(referenceImage).withFaceLandmarks().withFaceDescriptor();
-        if (!referenceDetection) {
-           throw new Error("Physical image found but no face detected.");
+        // 🗑️ 3. FALLBACK: Fetch physical photo if vector is missing (Unreliable on Free Tier/Cloud Cloud)
+        console.warn("⚠️ [BIO-SHIELD] Falling back to physical photo...");
+        try {
+          const registeredImageUrl = `${facesLink}${dbProfile.avatar}`;
+          const referenceImage = await faceapi.fetchImage(registeredImageUrl);
+          const referenceDetection = await faceapi.detectSingleFace(referenceImage).withFaceLandmarks().withFaceDescriptor();
+          if (!referenceDetection) throw new Error("No face found in original profile photo.");
+          referenceDescriptor = referenceDetection.descriptor;
+        } catch (e) {
+          throw new Error("Fallback Error: Original profile photo is inaccessible or corrupt. Please re-register.");
         }
-        referenceDescriptor = referenceDetection.descriptor;
       }
 
-      // 4. Compare descriptors (Euclidean Distance)
+      // 4. LIVENESS COMPARISON (Euclidean Distance check)
       const distance = faceapi.euclideanDistance(referenceDescriptor, liveDescriptor);
-      console.log(`[BIO-VERIFY] Distance: ${distance.toFixed(4)} (Tolerance: 0.55)`);
+      console.log(`[BIO-VERIFY] Distance: ${distance.toFixed(4)} (Threshold: 0.55)`);
 
-      // 4. Threshold check (Strict: 0.55)
       if (distance < 0.55) {
-        // Success! Identity Verified locally
-        alert(`✅ IDENTITY VERIFIED!\n\nHi ${profile.username}, your biometric signature matches. Proceeding to Blockchain...`);
+        // ✅ IDENTITY CONFIRMED
+        setBlinkStatus("🚀 ID Verified! Broadcasting Vote...");
         setIsAuthenticating(false);
         
         const candidateName = targetCandidate.name || targetCandidate;
         const candidateId = targetCandidate.id || targetCandidate;
-        
-        setBlinkStatus("🚀 Broadcasting Vote to Blockchain (Gasless)...");
 
-        // ⛽ GASLESS RELAYER: Send request to backend instead of MetaMask
-        const response = await axios.post(serverLink + "voting/cast", {
-          electionId: id,
-          candidateId: candidateId,
-          userId: profile.voterId // Using Voter ID for the blockchain record
-        });
-        
-        const result = response.data;
-        
-        if (result.success) {
-          try {
-            await axios.post(serverLink + "user/voted/" + profile._id);
-          } catch (err) {
-            console.error("Could not record vote participation:", err);
-          }
-          setReceiptData({
-            hash: result.hash,
-            voterId: profile.voterId,
-            candidate: candidateName
+        // ⛽ GASLESS RELAYER: Send request to the Master Wallet backend
+        try {
+          const response = await axios.post(serverLink + "voting/cast", {
+            electionId: id,
+            candidateId: candidateId,
+            userId: profile.voterId
           });
-          setShowReceipt(true);
-        } else {
-          alert(result.error || "Blockchain Transaction Failed on Server. Please try again.");
+          
+          const result = response.data;
+          
+          if (result.success) {
+            try { await axios.post(serverLink + "user/voted/" + profile._id); } catch(e){} 
+            setReceiptData({ hash: result.hash, voterId: profile.voterId, candidate: candidateName });
+            setShowReceipt(true);
+          } else {
+            throw new Error(`Blockchain Revert: ${result.error || "The Relayer failed to submit the vote."}`);
+          }
+        } catch (relayError) {
+          throw new Error(relayError.response?.data?.error || relayError.message || "Relayer Connectivity Lost.");
         }
       } else {
-        // Mismatch
-        alert(`⛔ IDENTITY REJECTED\n\nYour face does NOT match your registered voter profile (ID: ${profile.voterId}).`);
+        // ⛔ REJECTED
+        alert(`⛔ BIOMETRIC MISMATCH\n\nIdentity mismatch detected. Your face does NOT match the biometric profile for Voter ID: ${profile.voterId}.`);
         setIsAuthenticating(false);
       }
     } catch (err) {
-      console.error("Biometric Engine Error (Shield Mode):", err);
-      alert("⛔ BIOMETRIC ENGINE ERROR\n\nCould not initialize local facial comparison. Ensure camera permissions and page reload.");
+      console.error("CRITICAL BIO-CRASH:", err);
+      // Give the user the real error instead of masking it!
+      alert(`🚑 BIOMETRIC ENGINE ERROR\n\nCAUSE: ${err.message}\n\nWhat to do: Check console logs or try again with the MetaMask Extension DISABLED.`);
       setIsAuthenticating(false);
     }
   }, [id, targetCandidate]);
