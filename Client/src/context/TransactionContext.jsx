@@ -70,9 +70,10 @@ export const TransactionProvider = ({ children }) => {
       console.error("BLOCKCHAIN REVERT ERROR:", error);
       let realError = error.reason || (error.data && error.data.message) || error.message || "Transaction Failed";
       
-      // 🚨 AUTOMATIC RPC FIX INSTRUCTION
-      if (realError.includes("too many errors") || error.code === -32002 || realError.includes("RPC endpoint")) {
-         realError = "🚨 METAMASK OVERLOAD DETECTED 🚨\n\nThe RPC URL you entered in MetaMask is exhausted.\n\nPlease fix this to vote:\n1. Open MetaMask\n2. Settings -> Networks -> Sepolia\n3. Change the 'New RPC URL' to exactly: https://ethereum-sepolia-rpc.publicnode.com\n4. Save and try voting again!";
+      // We only want to intercept genuine rate limit exceptions (-32002),
+      // otherwise, we want to see the real reason the Smart Contract reverted!
+      if (error.code === -32002) {
+         realError = "🚨 METAMASK RATE LIMIT 🚨\nYour MetaMask RPC is overloaded. Please use your Private Alchemy URL in MetaMask Networks > Sepolia.";
       }
       
       return { success: false, mess: realError };
