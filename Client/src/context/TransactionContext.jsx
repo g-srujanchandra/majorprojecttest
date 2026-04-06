@@ -24,12 +24,10 @@ export const TransactionProvider = ({ children }) => {
       );
   };
 
-  const createEthereumContract = () => {
-    if (!ethereum) return null;
-
+  const createEthereumContract = async () => {
+    if (!ethereum) throw new Error("MetaMask not installed");
     const provider = new ethers.providers.Web3Provider(ethereum);
     const signer = provider.getSigner();
-
     return new ethers.Contract(
       contractAddress,
       contractABI.abi ? contractABI.abi : contractABI,
@@ -39,19 +37,24 @@ export const TransactionProvider = ({ children }) => {
 
   const connectWallet = async () => {
     if (!ethereum) return alert("Install MetaMask");
-    const accounts = await ethereum.request({
-      method: "eth_requestAccounts",
-    });
+    const accounts = await ethereum.request({ method: "eth_requestAccounts" });
     setCurrentAccount(accounts[0]);
+    return accounts[0];
   };
 
   const sendTransaction = async (election_id, candidate_id, user_id) => {
     try {
-      const contract = createEthereumContract();
+      // 🛡️ DYNAMIC AUTHORIZATION: Prevent undefined account errors from page reloads
+      let activeAccount = currentAccount;
+      if (!activeAccount) {
+        activeAccount = await connectWallet();
+      }
+
+      const contract = await createEthereumContract();
 
       // 🔍 BLOCKCHAIN SYNC: Convert all to strings to match Transaction.sol requirement
       const tx = await contract.addToBlockchain(
-        currentAccount,                   // receiver
+        activeAccount,                    // receiver
         user_id.toString(),               // voter identity
         election_id.toString(),           // election UUID
         candidate_id.toString(),          // candidate selected
