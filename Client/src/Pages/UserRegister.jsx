@@ -164,7 +164,9 @@ const UserRegister = () => {
       console.log("🚀 STARTING REGISTRATION REQUEST TO:", directURL);
       
       const res = await axios.post(directURL, data);
-      alert(res.data || "Registration Successful!");
+      console.log("✅ REGISTRATION SUCCESS:", res.data);
+      
+      alert("✅ Registration Successful!\n\nYou can now log in with your credentials.");
       window.location.href = "/login";
 
     } catch (e) {
@@ -210,27 +212,6 @@ const UserRegister = () => {
         <Typography variant="h4" align="center" gutterBottom>
           Secure Voter Registration
         </Typography>
-
-        {/* 🛠️ DIAGNOSIS: Connection Test Button */}
-        <Box display="flex" justifyContent="center" mb={3}>
-           <Button 
-             variant="outlined" 
-             color="warning" 
-             onClick={async () => {
-                try {
-                  const root = serverLink.replace("/api/auth/", "/health");
-                  console.log("🛠️ TESTING HEALTH AT:", root);
-                  const res = await axios.get(root);
-                  alert(`✅ SERVER IS ALIVE! Response: ${res.data}`);
-                } catch (e) {
-                  console.error("❌ HEALTH TEST FAILED:", e);
-                  alert(`🔴 CONNECTION FAILED: Check your server URL in Vercel settings.`);
-                }
-             }}
-           >
-             Test Server Connection
-           </Button>
-        </Box>
 
         <Grid container spacing={3}>
           

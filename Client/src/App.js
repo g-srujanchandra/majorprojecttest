@@ -10,10 +10,8 @@ function App() {
   
   useEffect(() => {
     // 🛡️ GLOBAL AXIOS SAFETY: Force use of the correct base URL
-    const root = serverLink.replace("/api/auth/", "");
-    axios.defaults.baseURL = root;
-    console.log("🛠️ GLOBAL AXIOS CONFIGURED TO:", axios.defaults.baseURL);
-    console.log("🚀 E-VOTING BUILD IDENTIFIER: F1-STABLE-v3");
+    const root = (serverLink || "").replace("/api/auth/", "");
+    if (root) axios.defaults.baseURL = root;
   }, []);
 
   return (
