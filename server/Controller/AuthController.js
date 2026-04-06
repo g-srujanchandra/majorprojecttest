@@ -434,14 +434,29 @@ export const a = {
     const tempPath = path.resolve(process.cwd(), "Faces", tempFilename);
 
     try {
+      // 🕵️‍♂️ Find the user to get their registered profile photo
+      const user = await User.findOne({ username });
+      if (!user || (!user.avatar && !user.idCardImage)) {
+        return res.status(404).send("User Biometric Profile Not Found");
+      }
+
+      // Use avatar (profile photo) as the primary face reference
+      const registeredPhoto = user.avatar || user.idCardImage;
+      const registeredPath = path.resolve(process.cwd(), "Faces", registeredPhoto);
+
+      if (!fs.existsSync(registeredPath)) {
+        console.error("Missing physical biometric file at:", registeredPath);
+        return res.status(404).send("Stored Biometric Identity File Missing");
+      }
+
       // 2. Decode the base64 image and save it to disk
       const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
       fs.writeFileSync(tempPath, base64Data, 'base64');
 
       const scriptPath = path.resolve(process.cwd(), "Controller", "fr.py");
 
-      // 3. Run Python script with TWO arguments: username AND the temp image path
-      PythonShell.run(scriptPath, { args: [username, tempPath] }, function (err, result) {
+      // 3. Run Python script with THREE arguments: username, live_photo, registered_photo
+      PythonShell.run(scriptPath, { args: [username, tempPath, registeredPath] }, function (err, result) {
         // ALWAYS delete the temp file after the script runs
         if (fs.existsSync(tempPath)) {
           fs.unlinkSync(tempPath);

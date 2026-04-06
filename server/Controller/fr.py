@@ -3,47 +3,58 @@ import face_recognition
 import numpy as np
 import sys
 import os
-from encoded import encoded_face_train, classNames
 
-def verify_face(target_username, captured_image_path):
-    if not os.path.exists(captured_image_path):
-        print("Error: Captured image not found")
+# 🚀 DYNAMIC 1-to-1 BIO-VERIFICATION ENGINE
+# Upgraded for Cloud Deployment (No more static databases)
+# This script directly compares the live login photo against the registered Voter ID photo.
+
+def verify_face(target_username, live_photo_path, registered_photo_path):
+    # 1. Validation
+    if not os.path.exists(live_photo_path):
+        print(f"Error: Live photo not found at {live_photo_path}")
+        return
+    if not os.path.exists(registered_photo_path):
+        print(f"Error: Registered Voter photo not found at {registered_photo_path}")
         return
 
-    # Load the captured image
-    img = cv2.imread(captured_image_path)
-    if img is None:
-        print("Error: Could not read captured image")
-        return
-
-    # Resize and convert to RGB (standard face_recognition processing)
-    imgS = cv2.resize(img, (0,0), None, 0.25, 0.25)
-    imgS = cv2.cvtColor(imgS, cv2.COLOR_BGR2RGB)
-
-    # Find faces in the captured image
-    faces_in_frame = face_recognition.face_locations(imgS)
-    encoded_faces = face_recognition.face_encodings(imgS, faces_in_frame)
-
-    for encode_face in encoded_faces:
-        # Compare with the trained database
-        matches = face_recognition.compare_faces(encoded_face_train, encode_face)
-        faceDist = face_recognition.face_distance(encoded_face_train, encode_face)
+    try:
+        # 2. Load and Encode the REGISTERED Photo (The Truth)
+        reg_img = face_recognition.load_image_file(registered_photo_path)
+        reg_encodings = face_recognition.face_encodings(reg_img)
         
-        if len(faceDist) > 0:
-            matchIndex = np.argmin(faceDist)
-            if matches[matchIndex]:
-                matched_username = classNames[matchIndex]
-                # Check if the matched face belongs to the expected user
-                if matched_username == target_username:
-                    print("Match")
-                    return
+        if len(reg_encodings) == 0:
+            print("Error: Could not extract features from the REGISTERED photo. Try re-uploading ID.")
+            return
+        
+        known_encoding = reg_encodings[0]
 
-    print("Mismatch")
+        # 3. Load and Encode the LIVE Photo (The Login Attempt)
+        live_img = face_recognition.load_image_file(live_photo_path)
+        live_encodings = face_recognition.face_encodings(live_img)
+
+        if len(live_encodings) == 0:
+            print("Mismatch: No face found in the LIVE login attempt.")
+            return
+
+        # 4. Compare faces (1-to-1)
+        # Tolerance 0.5 is strict, 0.6 is standard (Default is 0.6)
+        results = face_recognition.compare_faces([known_encoding], live_encodings[0], tolerance=0.55)
+        
+        if results[0]:
+            print("Match")
+        else:
+            # Also check the distance for logging
+            dist = face_recognition.face_distance([known_encoding], live_encodings[0])
+            print(f"Mismatch: Distance {dist[0]:.4f} (Required < 0.55)")
+
+    except Exception as e:
+        print(f"Engine Exception: {str(e)}")
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Usage: python fr.py <username> <captured_image_path>")
+    if len(sys.argv) < 4:
+        print("Usage: python fr.py <username> <live_photo_path> <registered_photo_path>")
     else:
         username = sys.argv[1]
-        image_path = sys.argv[2]
-        verify_face(username, image_path)
+        live_path = sys.argv[2]
+        reg_path = sys.argv[3]
+        verify_face(username, live_path, reg_path)
