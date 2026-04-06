@@ -22,7 +22,7 @@ const calculateEAR = (eye) => {
 
 export default function ViewElection() {
   const { id } = useParams();
-  const { currentAccount, sendTransaction, getElectionTimes, connectWallet } = useContext(TransactionContext);
+  const { getElectionTimes } = useContext(TransactionContext);
 
   const [candidates, setCandidates] = useState([]);
   const [allCandidatesDetails, setAllCandidatesDetails] = useState([]);
@@ -176,11 +176,6 @@ export default function ViewElection() {
       alert(`Access Denied: The Smart Contract has locked the voting terminal!\n\n${windowMessage || "The administrative election period is currently not active."}`);
       return;
     }
-
-    if (!currentAccount) {
-      alert("Connect Wallet First");
-      return;
-    }
     
     // User must be logged in to localStorage to authenticate biometricly
     const userProfileStr = localStorage.getItem("userProfile");
@@ -281,7 +276,6 @@ export default function ViewElection() {
         alert(`✅ IDENTITY VERIFIED!\n\nHi ${profile.username}, your biometric signature matches. Proceeding to Blockchain...`);
         setIsAuthenticating(false);
         
-        const user_id = currentAccount;
         const candidateName = targetCandidate.name || targetCandidate;
         const candidateId = targetCandidate.id || targetCandidate;
         
@@ -321,7 +315,7 @@ export default function ViewElection() {
       alert("⛔ BIOMETRIC ENGINE ERROR\n\nCould not initialize local facial comparison. Ensure camera permissions and page reload.");
       setIsAuthenticating(false);
     }
-  }, [currentAccount, id, sendTransaction, targetCandidate]);
+  }, [id, targetCandidate]);
 
   useEffect(() => {
     let timeoutId;
@@ -461,12 +455,6 @@ export default function ViewElection() {
         <Alert severity="success" sx={{ mb: 4, fontWeight: 'bold', fontSize: '1.1rem' }}>
           ✅ YOUR VOTE HAS BEEN RECORDED: You have successfully participated in this digital election.
         </Alert>
-      )}
-
-      {!currentAccount && (
-        <Button variant="contained" size="large" color="error" onClick={connectWallet} style={{ marginBottom: "30px" }}>
-          Connect MetaMask Wallet to Vote
-        </Button>
       )}
 
       {windowMessage && (
