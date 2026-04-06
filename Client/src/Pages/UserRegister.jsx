@@ -166,8 +166,13 @@ const UserRegister = () => {
       const res = await axios.post(directURL, data);
       console.log("✅ REGISTRATION SUCCESS:", res.data);
       
+      // 🔔 PROMINENT SUCCESS ALERT
       alert("✅ Registration Successful!\n\nYou can now log in with your credentials.");
-      window.location.href = "/login";
+
+      // ⏳ GENTLE DELAY: Give the browser time to finish the alert before redirecting
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 800);
 
     } catch (e) {
       console.error("❌ CRITICAL: REGISTRATION FAILED", e);
