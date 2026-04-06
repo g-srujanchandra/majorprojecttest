@@ -124,6 +124,8 @@ const UserRegister = () => {
     alert("Voter ID Document uploaded successfully!");
   };
 
+  const [isRegistrationFinalized, setIsRegistrationFinalized] = useState(false);
+
   const handleRegister = async () => {
     if (!faceDescriptor) {
       alert("Please upload a clear profile photo to extract facial data.");
@@ -166,13 +168,7 @@ const UserRegister = () => {
       const res = await axios.post(directURL, data);
       console.log("✅ REGISTRATION SUCCESS:", res.data);
       
-      // 🔔 PROMINENT SUCCESS ALERT
-      alert("✅ Registration Successful!\n\nYou can now log in with your credentials.");
-
-      // ⏳ GENTLE DELAY: Give the browser time to finish the alert before redirecting
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 800);
+      setIsRegistrationFinalized(true);
 
     } catch (e) {
       console.error("❌ CRITICAL: REGISTRATION FAILED", e);
@@ -191,6 +187,33 @@ const UserRegister = () => {
       alert(`⛔ ERROR (${status || 'Network'}): ${errorMsg}\n\nDetail: ${detail}\n\n(Tip: Check if the username, email, or Voter ID is already registered)`);
     }
   };
+
+  if (isRegistrationFinalized) {
+    return (
+      <Grid container justifyContent="center" style={{ marginTop: "100px", marginBottom: "50px" }}>
+        <Paper style={{ padding: 60, width: "65%", textAlign: "center", borderTop: "10px solid #4caf50" }}>
+          <Typography variant="h3" style={{ color: "#4caf50", fontWeight: "bold" }} gutterBottom>
+            ✅ Registration Successful!
+          </Typography>
+          <Typography variant="h6" color="textSecondary" style={{ marginBottom: 30 }}>
+            Your account and facial biometric profile have been securely stored in the Election Commission database.
+          </Typography>
+          <Typography variant="body1" style={{ marginBottom: 40 }}>
+            You are now eligible to participate in upcoming elections. Please click the button below to proceed to the login page.
+          </Typography>
+          <Button 
+            variant="contained" 
+            size="large" 
+            color="success" // Note: MUI Success color
+            href="/login"
+            style={{ padding: "12px 40px", fontSize: "1.1rem", backgroundColor: "#4caf50", color: "white" }}
+          >
+            Go to Login Page
+          </Button>
+        </Paper>
+      </Grid>
+    );
+  }
 
   if (!isRegistrationOpen) {
     return (
