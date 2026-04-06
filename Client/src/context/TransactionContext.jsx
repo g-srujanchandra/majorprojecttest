@@ -73,7 +73,7 @@ export const TransactionProvider = ({ children }) => {
       // We only want to intercept genuine rate limit exceptions (-32002),
       // otherwise, we want to see the real reason the Smart Contract reverted!
       if (error.code === -32002) {
-         realError = "🚨 METAMASK RATE LIMIT 🚨\nYour MetaMask RPC is overloaded. Please use your Private Alchemy URL in MetaMask Networks > Sepolia.";
+         realError = "🚨 PENDING METAMASK TRANSACTION 🚨\n\nYou clicked Vote, but MetaMask is hiding in the background!\n\n1. Click the MetaMask Fox Icon in your browser extension bar.\n2. You will see a transaction waiting for you to 'Confirm'.\n3. Confirm it, or reject it and try again.";
       }
       
       return { success: false, mess: realError };
