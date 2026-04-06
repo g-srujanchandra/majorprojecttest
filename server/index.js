@@ -23,7 +23,6 @@ app.use(cors({
 app.get("/health", (req, res) => res.send("OK - Server is Live"));
 
 // 🌐 ROUTING: Support both root "/" and "/api/auth/" paths for max compatibility
-app.post("/op", a.sc);
 app.use("/", Auth); 
 app.use("/api/auth", Auth); 
 
