@@ -14,6 +14,12 @@ export const serverLink = `${rootURL}/api/auth/`;
 export const facesLink = `${rootURL}/Faces/`;
 export const clientLink = (process.env.REACT_APP_CLIENT_URL || "http://localhost:3000/").replace(/\/$/, "") + "/";
 
+// 🛡️ SELF-CONNECTION SHIELD: Detect if the user pointed the backend to the frontend URL
+if (typeof window !== "undefined" && serverLink.includes(window.location.hostname)) {
+  console.error("⛔ CONFIG ERROR: Your REACT_APP_SERVER_URL is pointing to your frontend (Vercel) instead of your backend (Railway)!");
+  console.error("Please update your Vercel Environment Variables to point to Railway.");
+}
+
 console.log("📡 CONNECTING TO BACKEND ->", serverLink);
 console.log("📂 IMAGE STORAGE ->", facesLink);
 console.log("█████████████████████████████████████████████");
