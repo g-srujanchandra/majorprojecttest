@@ -13,7 +13,8 @@ export const TransactionProvider = ({ children }) => {
 
 
   // 🏎️ DUAL-ENGINE BRIDGE: Separate 'Reading' from 'Writing' to bypass rate limits
-  const readonlyProvider = new ethers.providers.JsonRpcProvider("https://rpc.sepolia.org");
+  // Changed from rpc.sepolia.org to a much stronger public node
+  const readonlyProvider = new ethers.providers.JsonRpcProvider("https://ethereum-sepolia-rpc.publicnode.com");
   
   const getReadOnlyContract = () => {
       return new ethers.Contract(
@@ -67,7 +68,13 @@ export const TransactionProvider = ({ children }) => {
       return { success: true, hash: tx.hash, mess: "Vote Casted Successfully" };
     } catch (error) {
       console.error("BLOCKCHAIN REVERT ERROR:", error);
-      const realError = error.reason || (error.data && error.data.message) || error.message || "Transaction Failed";
+      let realError = error.reason || (error.data && error.data.message) || error.message || "Transaction Failed";
+      
+      // 🚨 AUTOMATIC RPC FIX INSTRUCTION
+      if (realError.includes("too many errors") || error.code === -32002 || realError.includes("RPC endpoint")) {
+         realError = "🚨 METAMASK OVERLOAD DETECTED 🚨\n\nThe RPC URL you entered in MetaMask is exhausted.\n\nPlease fix this to vote:\n1. Open MetaMask\n2. Settings -> Networks -> Sepolia\n3. Change the 'New RPC URL' to exactly: https://ethereum-sepolia-rpc.publicnode.com\n4. Save and try voting again!";
+      }
+      
       return { success: false, mess: realError };
     }
   };
