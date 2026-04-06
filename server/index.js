@@ -26,7 +26,11 @@ app.get("/health", (req, res) => res.send("OK - Server is Live"));
 app.use("/", Auth); 
 app.use("/api/auth", Auth); 
 
-app.use("/Faces", express.static("Faces"));
+app.use("/Faces", express.static("Faces", {
+  setHeaders: (res) => {
+    res.set("Access-Control-Allow-Origin", "*");
+  }
+}));
 
 mongoose.set('strictQuery', false);
 mongoose

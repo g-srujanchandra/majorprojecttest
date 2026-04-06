@@ -237,6 +237,8 @@ export default function ViewElection() {
     try {
       // 1. Fetch the original registration photo (Reference) 
       const registeredImageUrl = `${serverLink.replace('/api/auth/', '')}/Faces/${profile.avatar}`;
+      
+      // 🏎️ SPEED FIX: Request specifically with 'anonymous' to bypass CORS blocks
       const referenceImage = await faceapi.fetchImage(registeredImageUrl);
       
       // 2. Extract features from the reference 
