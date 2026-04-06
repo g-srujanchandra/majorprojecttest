@@ -58,18 +58,18 @@ export const register = {
         }
 
         const newUser = await User.create(req.body);
+        console.log(`[REGISTRATION] Success for user: ${newUser.username}`);
 
+        // 🚀 SPEED FIX: Send the response to the website IMMEDIATELY.
+        // Do NOT 'await' the email. Send it in the background so the user doesn't wait.
+        res.status(201).send("Registration Successful!");
+
+        // Send email in the background
         const mailSubject = "Welcome to E-Voting System";
         const mailContent = `Thank you for registering. You are now officially enrolled for the upcoming election.`;
-
-        // Send a welcome email but DO NOT send the passcode. Passcode is given at login.
-        try {
-          await sendMail(mailContent, mailSubject, newUser);
-          return res.status(201).send("Registration Successful! (You will receive your Session Passcode when you login)");
-        } catch (mailError) {
-          console.error("Mail Sending Failed during registration:", mailError);
-          return res.status(201).send("Registration Successful! (You will receive your Session Passcode when you login)");
-        }
+        sendMail(mailContent, mailSubject, newUser).catch(err => {
+            console.error("Background Mail Error (Ignoring to prevent timeout):", err);
+        });
 
       } catch (e) {
         console.error("CRITICAL REGISTRATION FAILURE:", e);
