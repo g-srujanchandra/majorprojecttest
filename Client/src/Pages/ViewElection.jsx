@@ -215,13 +215,14 @@ export default function ViewElection() {
 
   const handleVerifyCredentials = () => {
     const profile = JSON.parse(localStorage.getItem("userProfile"));
-    if (inputVoterId === profile.voterId && inputPasscode === profile.password) {
+    // We use trim() just in case the user accidentally copies a space!
+    if (inputVoterId.trim() === String(profile.voterId).trim() && inputPasscode.trim() === String(profile.passcode).trim()) {
       setIsCredentialVerified(true);
       setScanning(true);
       setHasBlinked(false);
       setBlinkStatus("Initializing live scan...");
     } else {
-      alert("Invalid Voter ID or Password. Please ensure you entered the correct details.");
+      alert(`Invalid Voter ID or Passcode. Please check your details.\n\n(Tip: Your 6-digit Secure Passcode was given to you when you logged in!)`);
     }
   };
 
@@ -525,7 +526,7 @@ export default function ViewElection() {
           ) : !isCredentialVerified ? (
             <Box p={2}>
               <Typography variant="body2" color="textSecondary" style={{ marginBottom: 20 }}>
-                Please enter your Voter ID and Account Password to unlock biometric voting.
+                Please enter your Voter ID and the 6-digit Session Passcode given to you during Login.
               </Typography>
               <TextField
                 fullWidth
@@ -537,7 +538,7 @@ export default function ViewElection() {
               />
               <TextField
                 fullWidth
-                label="Account Password"
+                label="Security Passcode"
                 type="password"
                 variant="outlined"
                 margin="normal"
