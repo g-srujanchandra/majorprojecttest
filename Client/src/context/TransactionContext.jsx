@@ -66,25 +66,17 @@ export const TransactionProvider = ({ children }) => {
     }
   };
 
-  // ✅ FIXED DATA FETCH (IMPORTANT CHANGE)
+  const [isNetworkBusy, setIsNetworkBusy] = useState(false);
+
+  // ✅ SMART POLLING: Only fetch when needed to save RPC credits
   const getAllTransactions = useCallback(async () => {
+    if (isNetworkBusy) return [];
+    
     try {
       const contract = createEthereumContract();
       if (!contract) return [];
 
-      // 🔥 SAFETY CHECK: Verify the contract exists before calling
-      const code = await ethereum.request({
-        method: 'eth_getCode',
-        params: [contractAddress, 'latest'],
-      });
-      if (code === '0x') {
-        console.warn("⚠️ BLOCKCHAIN: Contract not found at this address on Sepolia. Skipping transactions.");
-        return [];
-      }
-
       const data = await contract.getAllTransaction();
-      console.log("RAW BLOCKCHAIN DATA:", data);
-
       const formatted = data.map((tx) => ({
         election_id: tx.election_id.toString(),
         candidate_id: tx.candidate_id.toString(),
@@ -94,15 +86,21 @@ export const TransactionProvider = ({ children }) => {
       setTransactions(formatted);
       return formatted;
     } catch (error) {
-      // 🛡️ SILENCE REVERT ERRORS (Common with Alchemy free tier)
-      if (error.code === 'CALL_EXCEPTION' || error.message.includes('missing revert data')) {
-        console.warn("🛡️ BLOCKCHAIN NOTICE: Sepolia RPC is currently busy or contract not yet initialized. Skipping fetch.");
-      } else {
-        console.error("Blockchain Fetch Error:", error);
+      // 🛡️ RATE LIMIT SHIELD: If Alchemy is busy, stay quiet for 60 seconds
+      if (error.message.includes("too many errors") || error.code === 429) {
+        console.warn("🛡️ BLOCKCHAIN: RPC Rate limit hit. Entering Quiet Mode for 60s...");
+        setIsNetworkBusy(true);
+        setTimeout(() => setIsNetworkBusy(false), 60000);
       }
       return [];
     }
-  }, []);
+  }, [isNetworkBusy]);
+
+  useEffect(() => {
+    if (ethereum && currentAccount) {
+      getAllTransactions();
+    }
+  }, [currentAccount, ethereum]); // Removed getAllTransactions from deps to prevent loop
 
   const getElectionTimes = async () => {
     try {
