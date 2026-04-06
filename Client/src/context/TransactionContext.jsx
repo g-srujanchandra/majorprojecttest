@@ -97,10 +97,9 @@ export const TransactionProvider = ({ children }) => {
   }, [isNetworkBusy]);
 
   useEffect(() => {
-    if (ethereum && currentAccount) {
-      getAllTransactions();
-    }
-  }, [currentAccount, ethereum]); // Removed getAllTransactions from deps to prevent loop
+    // 🤫 FOCUS MODE: Only fetch on-demand to save RPC credits
+    // getAllTransactions(); 
+  }, [currentAccount, ethereum]); 
 
   const getElectionTimes = async () => {
     try {
