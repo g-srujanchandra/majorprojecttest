@@ -12,6 +12,17 @@ export const TransactionProvider = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
 
+  // 🏎️ DUAL-ENGINE BRIDGE: Separate 'Reading' from 'Writing' to bypass rate limits
+  const readonlyProvider = new ethers.providers.JsonRpcProvider("https://rpc.sepolia.org");
+  
+  const getReadOnlyContract = () => {
+      return new ethers.Contract(
+          contractAddress,
+          contractABI.abi ? contractABI.abi : contractABI,
+          readonlyProvider
+      );
+  };
+
   const createEthereumContract = () => {
     if (!ethereum) return null;
 
@@ -38,29 +49,24 @@ export const TransactionProvider = ({ children }) => {
       const contract = createEthereumContract();
 
       // 🔍 BLOCKCHAIN SYNC: Convert all to strings to match Transaction.sol requirement
-      // Params: (address receiver, string user_id, string election_id, string candidate_id)
       const tx = await contract.addToBlockchain(
-        currentAccount,                   // receiver (voter's own address)
-        user_id.toString(),               // voter identity tracking
-        election_id.toString(),           // the current election UUID
-        candidate_id.toString(),          // the selected candidate
-        {
-          gasLimit: 300000,               // 🏗️ SAFETY: Ensure enough gas for the tx
-        }
+        currentAccount,                   // receiver
+        user_id.toString(),               // voter identity
+        election_id.toString(),           // election UUID
+        candidate_id.toString(),          // candidate selected
+        { gasLimit: 500000 }              // 🏗️ SAFETY: High gas limit for cloud stability
       );
 
       console.log(`Transaction Loading... Hash: ${tx.hash}`);
       await tx.wait();
       console.log(`Transaction Success!`);
 
-      // ✅ FORCE REFRESH AFTER TX
+      // ✅ REFRESH AFTER TX
       await getAllTransactions();
 
       return { success: true, hash: tx.hash, mess: "Vote Casted Successfully" };
     } catch (error) {
       console.error("BLOCKCHAIN REVERT ERROR:", error);
-      
-      // 🕵️‍♂️ EXTRACT REAL ERROR: MetaMask usually hides the real reason in 'reason' or 'data.message'
       const realError = error.reason || (error.data && error.data.message) || error.message || "Transaction Failed";
       return { success: false, mess: realError };
     }
@@ -68,14 +74,12 @@ export const TransactionProvider = ({ children }) => {
 
   const [isNetworkBusy, setIsNetworkBusy] = useState(false);
 
-  // ✅ SMART POLLING: Only fetch when needed to save RPC credits
+  // 🤫 SILENT LISTENER: Uses the Public Bridge
   const getAllTransactions = useCallback(async () => {
     if (isNetworkBusy) return [];
     
     try {
-      const contract = createEthereumContract();
-      if (!contract) return [];
-
+      const contract = getReadOnlyContract();
       const data = await contract.getAllTransaction();
       const formatted = data.map((tx) => ({
         election_id: tx.election_id.toString(),
@@ -86,52 +90,46 @@ export const TransactionProvider = ({ children }) => {
       setTransactions(formatted);
       return formatted;
     } catch (error) {
-      // 🛡️ RATE LIMIT SHIELD: If Alchemy is busy, stay quiet for 60 seconds
+      // 🛡️ SILENT SHIELD: Never alert the user for background sync errors
       if (error.message.includes("too many errors") || error.code === 429) {
-        console.warn("🛡️ BLOCKCHAIN: RPC Rate limit hit. Entering Quiet Mode for 60s...");
         setIsNetworkBusy(true);
-        setTimeout(() => setIsNetworkBusy(false), 60000);
+        setTimeout(() => setIsNetworkBusy(false), 20000);
       }
       return [];
     }
   }, [isNetworkBusy]);
 
-  useEffect(() => {
-    // 🤫 FOCUS MODE: Only fetch on-demand to save RPC credits
-    // getAllTransactions(); 
-  }, [currentAccount, ethereum]); 
-
   const getElectionTimes = async () => {
     try {
-      const contract = createEthereumContract();
+      const contract = getReadOnlyContract();
       const start = await contract.startTime();
       const end = await contract.endTime();
       return { start: start.toNumber(), end: end.toNumber() };
     } catch (error) {
-      console.error(error);
+      console.warn("🛡️ SILENT NOTICE: Failed to fetch election times. Using defaults.");
       return { start: 0, end: 0 };
     }
   };
 
   const setElectionTimes = async (startTimeUnix, endTimeUnix) => {
     try {
-      if (!ethereum) return alert("Please install MetaMask.");
+      if (!ethereum) return;
       const transactionsContract = createEthereumContract();
       const transactionHash = await transactionsContract.setElectionPeriod(startTimeUnix, endTimeUnix);
-      console.log(`Loading - ${transactionHash.hash}`);
       await transactionHash.wait();
-      console.log(`Success - ${transactionHash.hash}`);
       return { success: true };
     } catch (error) {
-      console.error(error);
       return { success: false, message: error.message };
     }
   };
 
   useEffect(() => {
-    if (ethereum) {
-      getAllTransactions();
-    }
+    // 🤫 FOCUS MODE: Only fetch on-demand to save RPC credits
+    // getAllTransactions(); 
+  }, [currentAccount, ethereum]); 
+
+  useEffect(() => {
+    getAllTransactions();
   }, [currentAccount, getAllTransactions]);
 
   return (
