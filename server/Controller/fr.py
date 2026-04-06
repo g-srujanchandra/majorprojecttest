@@ -19,7 +19,13 @@ def verify_face(target_username, live_photo_path, registered_photo_path):
 
     try:
         # 2. Load and Encode the REGISTERED Photo (The Truth)
+        # 🏎️ AUTO-OPTIMIZE: Load and process at a smaller scale for speed
         reg_img = face_recognition.load_image_file(registered_photo_path)
+        
+        # Shrink image to 1/2 size if it's too large to prevent cloud timeouts
+        if reg_img.shape[1] > 800:
+             reg_img = cv2.resize(reg_img, (0,0), fx=0.5, fy=0.5)
+        
         reg_encodings = face_recognition.face_encodings(reg_img)
         
         if len(reg_encodings) == 0:
@@ -30,6 +36,11 @@ def verify_face(target_username, live_photo_path, registered_photo_path):
 
         # 3. Load and Encode the LIVE Photo (The Login Attempt)
         live_img = face_recognition.load_image_file(live_photo_path)
+        
+        # Shrink image for speed
+        if live_img.shape[1] > 800:
+             live_img = cv2.resize(live_img, (0,0), fx=0.5, fy=0.5)
+
         live_encodings = face_recognition.face_encodings(live_img)
 
         if len(live_encodings) == 0:
