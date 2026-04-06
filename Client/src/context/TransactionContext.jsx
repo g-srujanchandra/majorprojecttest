@@ -128,9 +128,7 @@ export const TransactionProvider = ({ children }) => {
     // getAllTransactions(); 
   }, [currentAccount, ethereum]); 
 
-  useEffect(() => {
-    getAllTransactions();
-  }, [currentAccount, getAllTransactions]);
+  // 🤫 BACKGROUND SPAM REMOVED - Final Silence 🛡️
 
   return (
     <TransactionContext.Provider
