@@ -19,7 +19,10 @@ const corsOptions = {
   optionsSuccessStatus: 204
 };
 app.use(cors(corsOptions));
-app.use("/api/auth", Auth);
+// 🌐 ROUTING: Support both root "/" and "/api/auth/" paths for max compatibility
+app.use("/", Auth); 
+app.use("/api/auth", Auth); 
+
 app.use("/Faces", express.static("Faces"));
 
 mongoose.set('strictQuery', false);

@@ -159,8 +159,11 @@ const UserRegister = () => {
     }
 
     try {
-      console.log("🚀 STARTING REGISTRATION REQUEST TO:", serverLink + "register");
-      const res = await axios.post(serverLink + "register", data);
+      // 🏗️ DIRECT ROUTE FIX: If serverLink ends in /api/auth/, let's try the root /register first
+      const directURL = serverLink.replace("/api/auth/", "/register");
+      console.log("🚀 STARTING REGISTRATION REQUEST TO:", directURL);
+      
+      const res = await axios.post(directURL, data);
       alert(res.data || "Registration Successful!");
       window.location.href = "/login";
 
