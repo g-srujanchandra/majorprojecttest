@@ -33,27 +33,36 @@ export const TransactionProvider = ({ children }) => {
     setCurrentAccount(accounts[0]);
   };
 
-  // ✅ FIXED TRANSACTION
   const sendTransaction = async (election_id, candidate_id, user_id) => {
     try {
       const contract = createEthereumContract();
 
+      // 🔍 BLOCKCHAIN SYNC: Convert all to strings to match Transaction.sol requirement
+      // Params: (address receiver, string user_id, string election_id, string candidate_id)
       const tx = await contract.addToBlockchain(
-        currentAccount,
-        user_id,
-        election_id,
-        candidate_id
+        currentAccount,                   // receiver (voter's own address)
+        user_id.toString(),               // voter identity tracking
+        election_id.toString(),           // the current election UUID
+        candidate_id.toString(),          // the selected candidate
+        {
+          gasLimit: 300000,               // 🏗️ SAFETY: Ensure enough gas for the tx
+        }
       );
 
+      console.log(`Transaction Loading... Hash: ${tx.hash}`);
       await tx.wait();
+      console.log(`Transaction Success!`);
 
       // ✅ FORCE REFRESH AFTER TX
       await getAllTransactions();
 
       return { success: true, hash: tx.hash, mess: "Vote Casted Successfully" };
     } catch (error) {
-      console.error(error);
-      return { success: false, mess: "Transaction Failed" };
+      console.error("BLOCKCHAIN REVERT ERROR:", error);
+      
+      // 🕵️‍♂️ EXTRACT REAL ERROR: MetaMask usually hides the real reason in 'reason' or 'data.message'
+      const realError = error.reason || (error.data && error.data.message) || error.message || "Transaction Failed";
+      return { success: false, mess: realError };
     }
   };
 
