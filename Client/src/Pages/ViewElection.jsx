@@ -165,6 +165,7 @@ export default function ViewElection() {
       try {
         await Promise.all([
           faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
           faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
           faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
         ]);
@@ -333,10 +334,11 @@ export default function ViewElection() {
         if (webcamRef.current && webcamRef.current.video && webcamRef.current.video.readyState === 4) {
           const video = webcamRef.current.video;
           
-          // Use slightly faster detection settings for the loop
+          // 🚀 PERFORMANCE FIX: Use TinyFaceDetector for the live 80ms loop
+          // It is much faster and more robust to different lighting than SSD Mobilenet
           const detections = await faceapi.detectSingleFace(
             video, 
-            new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 }) 
+            new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 }) 
           ).withFaceLandmarks().withFaceDescriptor();
 
           if (detections) {
@@ -383,7 +385,8 @@ export default function ViewElection() {
               }
             }
           } else {
-            setBlinkStatus("Scanning... Face not centered.");
+            setBlinkStatus("Searching for face... (Adjust lighting if needed)");
+            setCurrentEAR(0); // Reset EAR if no face found
             stableFramesRef.current = 0;
           }
         }
