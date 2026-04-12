@@ -160,13 +160,18 @@ export default function ViewElection() {
 
   useEffect(() => {
     const loadModels = async () => {
-      const MODEL_URL = process.env.PUBLIC_URL + '/models';
-      await Promise.all([
-        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL), // Higher precision
-        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-      ]);
-      setModelsLoaded(true);
+      // 🚩 FIX: Use absolute root path for models to avoid sub-route loading issues
+      const MODEL_URL = '/models'; 
+      try {
+        await Promise.all([
+          faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+          faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+        ]);
+        setModelsLoaded(true);
+      } catch (err) {
+        console.error("AI Model Load Error:", err);
+      }
     };
     loadModels();
   }, []);
@@ -336,17 +341,17 @@ export default function ViewElection() {
 
           if (detections) {
             // 🛡️ LIVENESS HARDENING: Stability Check
-            // A shaken photo or phone screen will have high jitter in the nose position
+            // Increased jitter tolerance from 15 to 25 for better compatibility with low-light/noisy webcams
             const nose = detections.landmarks.getNose()[3]; // Tip of the nose
             const dx = Math.abs(nose.x - lastPosRef.current.x);
             const dy = Math.abs(nose.y - lastPosRef.current.y);
             lastPosRef.current = { x: nose.x, y: nose.y };
 
-            if (dx > 15 || dy > 15) { // Reset if moving too fast (shaking detected)
+            if (dx > 25 || dy > 25) { 
               blinkCounterRef.current = 0;
               stableFramesRef.current = 0;
               blinkWasDetectedRef.current = false;
-              setBlinkStatus("Face unstable. Hold still & blink.");
+              setBlinkStatus("Face unstable! Please HOLD STILL...");
             } else {
               stableFramesRef.current++;
               
@@ -355,28 +360,30 @@ export default function ViewElection() {
               const avgEAR = (earLeft + earRight) / 2;
               setCurrentEAR(avgEAR);
 
-              // 🛡️ LIVENESS HARDENING: Sustained Blink Check
-              // Require eyes to be closed for at least 2 frames and open for 2 frames
-              if (avgEAR < 0.22) { // Closed threshold
+              // 🛡️ LIVENESS HARDENING: Relaxed Sustained Blink Check
+              // Lowered open threshold and raised closed threshold for better sensitivity
+              if (avgEAR < 0.25) { // Relaxed Closed threshold (was 0.22)
                 blinkCounterRef.current++;
                 if (blinkCounterRef.current >= 2) {
                   blinkWasDetectedRef.current = true;
                   setHasBlinked(true);
-                  setBlinkStatus("Blink held. Now open your eyes...");
+                  setBlinkStatus("Blink detected! Now open your eyes...");
                 }
-              } else if (avgEAR > 0.28) { // Open threshold
-                if (blinkWasDetectedRef.current && stableFramesRef.current > 5) {
+              } else if (avgEAR > 0.26) { // Relaxed Open threshold (was 0.28)
+                if (blinkWasDetectedRef.current && stableFramesRef.current > 3) { // Lowered stable frame req from 5 to 3
                    // Success: Blink detected + Face was stable
                    isProcessingAuthRef.current = true;
                    handlePostLivenessAuth(detections.descriptor);
                 } else {
-                   blinkCounterRef.current = 0;
-                   setBlinkStatus("Please BLINK clearly...");
+                   // Keep status updated so user knows they are being tracked
+                   if (!blinkWasDetectedRef.current) {
+                      setBlinkStatus("System Ready: Please BLINK clearly");
+                   }
                 }
               }
             }
           } else {
-            setBlinkStatus("Face not centered.");
+            setBlinkStatus("Scanning... Face not centered.");
             stableFramesRef.current = 0;
           }
         }
@@ -387,7 +394,7 @@ export default function ViewElection() {
       if (isActive && !isProcessingAuthRef.current) {
         // Use requestAnimationFrame for smoother UI and better CPU usage
         requestAnimationFrame(() => {
-          setTimeout(runScanner, 80); // 80ms gap for ~12 FPS (Perfect for web biometric)
+          timeoutId = setTimeout(runScanner, 80); 
         });
       }
     };
@@ -398,7 +405,10 @@ export default function ViewElection() {
 
     return () => {
       isActive = false;
-      if (timeoutId) clearTimeout(timeoutId);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
     };
   }, [scanning, modelsLoaded, isAuthenticating, handlePostLivenessAuth]);
 
